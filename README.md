@@ -1,4 +1,4 @@
-# Mekanism Multiblock Calculator
+# Modded Minecraft Multiblock Calculator
 
 Single Page Application built with React + TypeScript.
 
@@ -43,7 +43,7 @@ This project should use official Mekanism references only:
 
 Vite `base` is configured for repository pages:
 
-- `/mekanism_multiblock_calculator.github.io/`
+- `/mmmc/`
 
 Deployment is handled by GitHub Actions:
 
