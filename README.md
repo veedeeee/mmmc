@@ -44,3 +44,13 @@ This project should use official Mekanism references only:
 Vite `base` is configured for repository pages:
 
 - `/mekanism_multiblock_calculator.github.io/`
+
+Deployment is handled by GitHub Actions:
+
+- Workflow: `.github/workflows/deploy-pages.yml`
+- Trigger: push to `master` (including PR merges) or manual run (`workflow_dispatch`)
+- Runner: `self-hosted`
+
+Repository setting requirement:
+
+- In repository Settings > Pages, set Source to `GitHub Actions`.
