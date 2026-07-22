@@ -48,9 +48,16 @@ In addition, the application will provide the graphical representation of the un
 - Put assistant behavior, workflow rules, and operational instructions in this `copilot-instructions.md` file.
 - Do not place assistant-operation policies inside application source comments.
 
+## Instruction Maintenance Policy
+- Keep `.github/copilot-instructions.md` and `.github/instructions/*.instructions.md` up to date when project behavior or modeling rules change.
+- If a change affects formulas, constraints, validation ranges, or supported structures, update related instruction files in the same work item.
+- If current instructions and implemented behavior diverge, treat it as a documentation defect and fix it before closing the task.
+- Prefer small, incremental updates to these documents so future sessions can reliably reuse the latest rules.
+
 ## External Coding Instructions
 - Follow `.github/instructions/nodejs-javascript-vitest.instructions.md` for coding and Vitest testing guidance.
 - Follow `.github/instructions/self-explanatory-code-commenting.instructions.md` for commenting guidance.
+- Follow `.github/instructions/mekanism-multiblock-formula-rules.instructions.md` for official-source formula constraints and multiblock-specific modeling rules.
 
 ## Git Commit Rule For Assistant
 - For assistant-created commits, set commit author name to `GitHub Copilot` while keeping the existing user email.

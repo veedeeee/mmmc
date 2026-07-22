@@ -1,0 +1,3 @@
+- Boiler uses measured split model: waterHeight = height - steamHeight - 2; steam capacity uses (steamHeight + 1) layers.
+- Industrial Turbine uses lowerVolume official-style formulas and vent-derived count (top toggle + side layers).
+- Fission Reactor warning thresholds are modeled from official constants: danger at 1200 K and critical at 1800 K, shown in UI warning block.
