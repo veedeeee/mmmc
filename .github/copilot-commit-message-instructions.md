@@ -1,0 +1,19 @@
+## Commit Message Rule (Gitmoji)
+- Message must be in English.
+- Prefix every commit message with one Gitmoji emoji from https://gitmoji.dev/.
+- Use message format: `<emoji> <summary in English>`.
+- Keep summary concise and action-oriented.
+- Recommended mapping in this repository:
+  - `:sparkles:` New feature (typically `minor` impact for release proposals)
+  - `:bug:` Bug fix (`patch`)
+  - `:adhesive_bandage:` Small non-critical fix (`patch`)
+  - `:recycle:` Refactor without behavior change (`patch` unless user states otherwise)
+  - `:lipstick:` UI/style change (`patch`)
+  - `:memo:` Documentation only (normally no version bump unless user requests)
+  - `:wrench:` Configuration update (`patch`)
+  - `:arrow_up:`/`:arrow_down:` Dependency change (`patch`, unless it introduces breaking change)
+  - `:truck:` Move/rename files (`patch`)
+  - `:boom:` Breaking change (`major`)
+  - `:bookmark:` Release/version tag related commit (use for release version commit)
+- For release SemVer proposal, prioritize commit intent from Gitmoji along with message content.
+- If Gitmoji and message content conflict, ask the user before deciding the bump.
