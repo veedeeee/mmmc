@@ -1,4 +1,4 @@
-# Mekanism Multiblock Calculator
+# Modded Minecraft Multiblock Calculator
 
 Single Page Application built with React + TypeScript.
 
