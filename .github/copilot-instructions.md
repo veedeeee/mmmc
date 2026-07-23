@@ -68,6 +68,7 @@ In addition, the application will provide the graphical representation of the un
 ## Pull Request Rule
 - When creating PRs with `gh pr create`, always pass a true multiline body (PowerShell here-string or `--body-file`) to avoid Markdown formatting collapse.
 - Do not pass literal `\n` escape sequences as plain text for PR body formatting.
+- For `release/* -> master` PRs, the body must include a clear change summary section describing what changed in that release.
 - Include a clear note in every PR body that it was prepared by Copilot.
 - Recommended PR body footer line:
   - `:dependabot: This PR was prepared by GitHub Copilot`
