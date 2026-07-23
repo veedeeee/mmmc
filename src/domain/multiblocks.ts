@@ -7,6 +7,9 @@ export type MultiblockKey =
     | 'industrialTurbine'
     | 'fissionReactor'
     | 'fusionReactor'
+    | 'quantumComputer'
+    | 'matrixAssembler'
+    | 'steamBoilerEngine'
 
 export type ResourceKey =
     | 'dynamicTankCasing'
@@ -46,6 +49,23 @@ export type ResourceKey =
     | 'fusionReactorController'
     | 'fusionReactorLogicAdapter'
     | 'laserFocusMatrix'
+    | 'quantumCore'
+    | 'quantumDataEntangler'
+    | 'quantumMultiThreader'
+    | 'quantumAccelerator'
+    | 'quantumComputerStructuralGlass'
+    | 'quantumCraftingUnit'
+    | 'quantumStorage128'
+    | 'quantumStorage256'
+    | 'assemblerMatrixFrame'
+    | 'assemblerMatrixWall'
+    | 'assemblerMatrixPatternCore'
+    | 'assemblerMatrixCraftCore'
+    | 'assemblerMatrixSpeedCore'
+    | 'createFluidTank'
+    | 'createBlazeBurner'
+    | 'createSteamEngine'
+    | 'createStraw'
 
 export type CalculationNoteKey =
     | 'spsFixedShape'
@@ -53,13 +73,33 @@ export type CalculationNoteKey =
     | 'fissionAssemblyPattern'
     | 'turbineApproximation'
     | 'specModelAssumption'
+    | 'pendingImplementation'
+    | 'quantumStructureBoundaryRule'
+    | 'quantumStorageTierRule'
     | 'evaporationSolarPatternModel'
     | 'coilSoftCap'
     | 'turbineBladeSoftCap'
     | 'turbineVentSoftCap'
     | 'turbineCondenserSoftCap'
+    | 'matrixAssemblerRules'
+    | 'matrixAssemblerSpeedCoreCap'
+    | 'createBoilerRules'
+    | 'createLiquidFuelNeedsStraw'
 
 export type CoolantType = 'water' | 'sodium'
+
+export type CreateBoilerFuelType =
+    | 'coal'
+    | 'blazeCake'
+    | 'lava'
+    | 'ethanol'
+    | 'creosote'
+    | 'plantoil'
+    | 'crudeOil'
+    | 'biofuel'
+    | 'biodiesel'
+    | 'diesel'
+    | 'gasoline'
 
 export type SpecKey =
     | 'dynamicTankFluidCapacity'
@@ -98,6 +138,14 @@ export type SpecKey =
     | 'fusionPassiveGeneration'
     | 'fusionCoolingTransferRate'
     | 'fusionCasingTemperature'
+    | 'quantumTotalStorage'
+    | 'quantumCoProcessors'
+    | 'matrixAssemblerPatternSlots'
+    | 'matrixAssemblerMaxConcurrentJobs'
+    | 'matrixAssemblerSpeedCoreEffectiveness'
+    | 'createBoilerLevel'
+    | 'createSteamEngineSu'
+    | 'createBoilerRequiredWaterFlow'
 
 export interface Dimensions {
     width: number
@@ -143,6 +191,17 @@ export interface CalculatorInput {
     fissionLogicAdapters?: number
     fusionLogicAdapters?: number
     fusionInjectionRate?: number
+    quantumStorageTier?: 128 | 256
+    quantumDataEntanglers?: number
+    quantumMultiThreaders?: number
+    quantumAccelerators?: number
+    quantumStorageBlocks?: number
+    matrixPatternCores?: number
+    matrixCraftCores?: number
+    matrixSpeedCores?: number
+    createBlazeBurners?: number
+    createFuelType?: CreateBoilerFuelType
+    createSteamEngines?: number
 }
 
 export interface CalculatorResult {
@@ -158,6 +217,25 @@ export interface CalculatorResult {
 
 const MIN_CUBOID = 3
 const MAX_CUBOID = 18
+const QUANTUM_MAX_SIZE = 7
+const QUANTUM_DATA_ENTANGLER_MULTIPLIER = 4
+const QUANTUM_ACCELERATOR_THREADS = 8
+const QUANTUM_MULTI_THREADER_MULTIPLIER = 4
+const MATRIX_ASSEMBLER_MIN_SIZE = 3
+const MATRIX_ASSEMBLER_MAX_SIZE = 7
+const CREATE_BOILER_MIN_EDGE = 1
+const CREATE_BOILER_MAX_EDGE = 3
+const CREATE_BOILER_MAX_HEIGHT = 8
+const MATRIX_PATTERN_SLOTS_PER_CORE = 36
+const MATRIX_CRAFT_THREADS_PER_CORE = 8
+const MATRIX_EFFECTIVE_SPEED_CORE_CAP = 5
+const CREATE_BOILER_MAX_LEVEL = 18
+const CREATE_BOILER_WATER_PER_LEVEL = 10
+const CREATE_STEAM_ENGINE_BASE_SU = 1024
+const CREATE_BLAZE_BURNER_HEAT_SOLID = 1
+const CREATE_BLAZE_BURNER_HEAT_LIQUID = 2
+const CREATE_BLAZE_BURNER_MIN = 1
+const CREATE_STEAM_ENGINE_MIN = 1
 const FISSION_BASE_BOIL_TEMPERATURE_K = 373.15
 const FISSION_WATER_CONDUCTIVITY = 0.5
 const FISSION_SODIUM_CONDUCTIVITY = 1
@@ -229,6 +307,9 @@ export const minimumPortsByType: Record<MultiblockKey, number> = {
     industrialTurbine: 1,
     fissionReactor: 4,
     fusionReactor: 2,
+    quantumComputer: 0,
+    matrixAssembler: 0,
+    steamBoilerEngine: 0,
 }
 
 const clampMin = (value: number, min: number): number => Math.max(min, Math.floor(value))
@@ -269,6 +350,23 @@ const getCoolantEfficiency = (coolantType: CoolantType): number =>
     coolantType === 'sodium' ? plannerDefaults.boilerSodiumCoolantEfficiency : plannerDefaults.boilerWaterCoolantEfficiency
 
 const toEven = (value: number): number => Math.floor(value / 2) * 2
+
+const isStandaloneQuantumCore = (dims: Dimensions): boolean =>
+    dims.width === 1 && dims.height === 1 && dims.length === 1
+
+const createFuelHeatProfile: Record<CreateBoilerFuelType, { heat: 1 | 2; requiresStraw: boolean }> = {
+    coal: { heat: 1, requiresStraw: false },
+    blazeCake: { heat: 2, requiresStraw: false },
+    lava: { heat: 1, requiresStraw: true },
+    ethanol: { heat: 1, requiresStraw: true },
+    creosote: { heat: 1, requiresStraw: true },
+    plantoil: { heat: 1, requiresStraw: true },
+    crudeOil: { heat: 1, requiresStraw: true },
+    biofuel: { heat: 2, requiresStraw: true },
+    biodiesel: { heat: 2, requiresStraw: true },
+    diesel: { heat: 2, requiresStraw: true },
+    gasoline: { heat: 2, requiresStraw: true },
+}
 
 export const estimateFissionMaxBurnRate = (
     assemblyBlocks: number,
@@ -372,6 +470,31 @@ export function calculateRequirements(input: CalculatorInput): CalculatorResult 
         }
         if (dims.width % 2 !== 1 || dims.length % 2 !== 1) {
             errors.push('Industrial Turbine width and length must be odd numbers.')
+        }
+    } else if (input.type === 'quantumComputer') {
+        if (dims.width > QUANTUM_MAX_SIZE || dims.height > QUANTUM_MAX_SIZE || dims.length > QUANTUM_MAX_SIZE) {
+            errors.push(`Quantum Computer dimensions must be <= ${QUANTUM_MAX_SIZE} in each axis.`)
+        }
+    } else if (input.type === 'matrixAssembler') {
+        if (
+            dims.width < MATRIX_ASSEMBLER_MIN_SIZE || dims.width > MATRIX_ASSEMBLER_MAX_SIZE ||
+            dims.height < MATRIX_ASSEMBLER_MIN_SIZE || dims.height > MATRIX_ASSEMBLER_MAX_SIZE ||
+            dims.length < MATRIX_ASSEMBLER_MIN_SIZE || dims.length > MATRIX_ASSEMBLER_MAX_SIZE
+        ) {
+            errors.push(`Matrix Assembler edge lengths must be between ${MATRIX_ASSEMBLER_MIN_SIZE} and ${MATRIX_ASSEMBLER_MAX_SIZE}.`)
+        }
+    } else if (input.type === 'steamBoilerEngine') {
+        if (
+            dims.width < CREATE_BOILER_MIN_EDGE || dims.width > CREATE_BOILER_MAX_EDGE ||
+            dims.height < CREATE_BOILER_MIN_EDGE || dims.height > CREATE_BOILER_MAX_HEIGHT ||
+            dims.length < CREATE_BOILER_MIN_EDGE || dims.length > CREATE_BOILER_MAX_EDGE
+        ) {
+            errors.push(
+                `Steam Boiler dimensions must be width/length ${CREATE_BOILER_MIN_EDGE}..${CREATE_BOILER_MAX_EDGE} and height ${CREATE_BOILER_MIN_EDGE}..${CREATE_BOILER_MAX_HEIGHT}.`,
+            )
+        }
+        if (dims.width !== dims.length) {
+            errors.push('Create Fluid Tank footprint must be square (width must equal length).')
         }
     } else {
         validateCuboidRange(dims, errors)
@@ -765,6 +888,122 @@ export function calculateRequirements(input: CalculatorInput): CalculatorResult 
                 'mB/t',
             )
             addSpec(specs, 'fusionCasingTemperature', round(maxCasingTemperature), 'K')
+            break
+        }
+
+        case 'quantumComputer': {
+            const standalone = isStandaloneQuantumCore(dims)
+            const boundaryBlocks = standalone ? 0 : shellBlocks
+            const interiorBlocks = standalone ? 0 : freeInnerVolume
+            const optionalSlots = standalone ? 0 : Math.max(interiorBlocks - 1, 0)
+            const dataEntanglers = clamp(Math.floor(input.quantumDataEntanglers ?? 0), 0, Math.min(optionalSlots, 1))
+            const optionalSlotsAfterEntanglers = Math.max(optionalSlots - dataEntanglers, 0)
+            const multiThreaders = clamp(Math.floor(input.quantumMultiThreaders ?? 0), 0, Math.min(optionalSlotsAfterEntanglers, 1))
+            const optionalSlotsAfterSpecials = Math.max(optionalSlotsAfterEntanglers - multiThreaders, 0)
+            const accelerators = clamp(Math.floor(input.quantumAccelerators ?? 0), 0, optionalSlotsAfterSpecials)
+            const storageSlotsMax = Math.max(optionalSlotsAfterSpecials - accelerators, 0)
+            const storageTier = input.quantumStorageTier ?? 256
+            const storageCells = clamp(Math.floor(input.quantumStorageBlocks ?? storageSlotsMax), 0, storageSlotsMax)
+            const quantumCraftingUnits = Math.max(storageSlotsMax - storageCells, 0)
+            const baseStorageM = 256 + storageCells * storageTier
+            const totalStorageM = baseStorageM * (dataEntanglers > 0 ? QUANTUM_DATA_ENTANGLER_MULTIPLIER : 1)
+            const baseCoProcessors = (1 + accelerators) * QUANTUM_ACCELERATOR_THREADS
+            const totalCoProcessors = baseCoProcessors * (multiThreaders > 0 ? QUANTUM_MULTI_THREADER_MULTIPLIER : 1)
+
+            addLine(lines, 'quantumCore', 1)
+            addLine(lines, 'quantumDataEntangler', dataEntanglers)
+            addLine(lines, 'quantumMultiThreader', multiThreaders)
+            addLine(lines, 'quantumAccelerator', accelerators)
+            addLine(lines, 'quantumComputerStructuralGlass', boundaryBlocks)
+            addLine(lines, 'quantumCraftingUnit', quantumCraftingUnits)
+            addLine(lines, storageTier === 128 ? 'quantumStorage128' : 'quantumStorage256', storageCells)
+
+            addSpec(specs, 'quantumTotalStorage', totalStorageM, 'M')
+            addSpec(specs, 'quantumCoProcessors', totalCoProcessors, 'threads')
+
+            notes.push('quantumStructureBoundaryRule')
+            notes.push('quantumStorageTierRule')
+            break
+        }
+
+        case 'matrixAssembler':
+            {
+                const edgeFrames = frameBlocks(dims)
+                const faceBlocks = Math.max(shellBlocks - edgeFrames, 0)
+                const interiorSlots = freeInnerVolume
+                const patternCores = Math.max(0, Math.floor(input.matrixPatternCores ?? 1))
+                const craftCores = Math.max(0, Math.floor(input.matrixCraftCores ?? 1))
+                const speedCores = Math.max(0, Math.floor(input.matrixSpeedCores ?? 0))
+                const filledInterior = patternCores + craftCores + speedCores
+
+                if (patternCores < 1) {
+                    errors.push('Matrix Assembler requires at least one Pattern Core.')
+                }
+                if (craftCores < 1) {
+                    errors.push('Matrix Assembler requires at least one Craft Core.')
+                }
+                if (filledInterior !== interiorSlots) {
+                    errors.push(`Matrix Assembler interior must be fully filled with Pattern/Craft/Speed cores (${interiorSlots} total).`)
+                }
+
+                addLine(lines, 'assemblerMatrixFrame', edgeFrames)
+                addLine(lines, 'assemblerMatrixWall', faceBlocks)
+                addLine(lines, 'assemblerMatrixPatternCore', patternCores)
+                addLine(lines, 'assemblerMatrixCraftCore', craftCores)
+                addLine(lines, 'assemblerMatrixSpeedCore', speedCores)
+
+                const effectiveSpeedCores = Math.min(speedCores, MATRIX_EFFECTIVE_SPEED_CORE_CAP)
+                const speedCoreEffectiveness = round((effectiveSpeedCores / MATRIX_EFFECTIVE_SPEED_CORE_CAP) * 100)
+                addSpec(specs, 'matrixAssemblerPatternSlots', patternCores * MATRIX_PATTERN_SLOTS_PER_CORE, 'slots')
+                addSpec(specs, 'matrixAssemblerMaxConcurrentJobs', craftCores * MATRIX_CRAFT_THREADS_PER_CORE, 'jobs')
+                addSpec(specs, 'matrixAssemblerSpeedCoreEffectiveness', speedCoreEffectiveness, '%')
+
+                notes.push('matrixAssemblerRules')
+                if (speedCores > MATRIX_EFFECTIVE_SPEED_CORE_CAP) {
+                    notes.push('matrixAssemblerSpeedCoreCap')
+                }
+                break
+            }
+
+        case 'steamBoilerEngine': {
+            const tankWidth = Math.min(dims.width, dims.length)
+            const tankSize = Math.max(tankWidth * tankWidth * dims.height, 0)
+            const blazeBurners = Math.max(CREATE_BLAZE_BURNER_MIN, Math.floor(input.createBlazeBurners ?? CREATE_BLAZE_BURNER_MIN))
+            const steamEngines = Math.max(CREATE_STEAM_ENGINE_MIN, Math.floor(input.createSteamEngines ?? CREATE_STEAM_ENGINE_MIN))
+            const burnerFootprint = Math.max(tankWidth * tankWidth, 0)
+            const fuelType = input.createFuelType ?? 'coal'
+            const fuelProfile = createFuelHeatProfile[fuelType]
+            const blazeBurnerHeat = fuelProfile.heat === 2 ? CREATE_BLAZE_BURNER_HEAT_LIQUID : CREATE_BLAZE_BURNER_HEAT_SOLID
+
+            if (blazeBurners > burnerFootprint) {
+                errors.push(`Blaze Burners must be <= tank footprint (${burnerFootprint}).`)
+            }
+            if (tankSize < 4) {
+                errors.push('Steam Boiler requires at least 4 Fluid Tank blocks.')
+            }
+
+            const maxHeatForSize = Math.min(CREATE_BOILER_MAX_LEVEL, Math.floor(tankSize / 4))
+            const activeHeat = blazeBurners * blazeBurnerHeat
+            const boilerLevel = Math.max(0, Math.floor(Math.min(activeHeat, maxHeatForSize)))
+            const engineEfficiency = boilerLevel === 0 ? 0 : steamEngines <= boilerLevel ? 1 : boilerLevel / steamEngines
+            const totalSu = Math.floor(engineEfficiency * 16 * steamEngines * CREATE_STEAM_ENGINE_BASE_SU)
+            const requiredWaterFlow = boilerLevel * CREATE_BOILER_WATER_PER_LEVEL
+
+            addLine(lines, 'createFluidTank', tankSize)
+            addLine(lines, 'createBlazeBurner', blazeBurners)
+            addLine(lines, 'createSteamEngine', steamEngines)
+            if (fuelProfile.requiresStraw) {
+                addLine(lines, 'createStraw', blazeBurners)
+            }
+
+            addSpec(specs, 'createBoilerLevel', boilerLevel, 'lvl')
+            addSpec(specs, 'createSteamEngineSu', totalSu, 'SU')
+            addSpec(specs, 'createBoilerRequiredWaterFlow', requiredWaterFlow, 'mB/t')
+
+            notes.push('createBoilerRules')
+            if (fuelProfile.requiresStraw) {
+                notes.push('createLiquidFuelNeedsStraw')
+            }
             break
         }
 

@@ -1,7 +1,7 @@
 # Copilot Instructions
 
 ## Project Overview
-This is a Single Page Application (SPA) built with React and TypeScript. The purpose of this application is to provide a user interface for some multiblock units from the Mekanism, a MOD for Minecraft. User can input some parameters like size, then the application will caluculate the required resouces like blocks, energy (RF/FE per tick) and fluids (mB per tick) for the unit. Also the application will show the efficiency of the unit.
+This is a Single Page Application (SPA) built with React and TypeScript. The purpose of this application is to provide a user interface for some multiblock units from some MODs for Minecraft. User can input some parameters like size, then the application will caluculate the required resouces like blocks, energy (RF/FE per tick) and fluids (mB per tick) for the unit. Also the application will show the efficiency of the unit.
 In addition, the application will provide the graphical representation of the unit, which can be rotated and zoomed in/out. The application will also provide a list of all the blocks used in the unit, along with their quantities and other relevant information.
 
 ## Environment notes
@@ -82,9 +82,21 @@ In addition, the application will provide the graphical representation of the un
 - If unexpected local changes appear, stop and confirm before proceeding.
 
 ## Data Source
-- Data source for this application must be from the official website of Mekanism MOD. Those pages should be;
-  - https://github.com/mekanism/Mekanism
-  - https://wiki.aidancbrady.com/wiki/Main_Page
+- Data source for this application must be from the official website of MODs. Those pages should be;
+  - Mekanism / Mekanism Generators
+    - https://github.com/mekanism/Mekanism
+    - https://wiki.aidancbrady.com/wiki/Main_Page
+  - Applied Energistics
+    - https://github.com/AppliedEnergistics/Applied-Energistics-2
+  - AdvancedAE
+    - https://github.com/pedroksl/AdvancedAE
+  - ExtendedAE
+    - https://github.com/GlodBlock/ExtendedAE
+  - Create
+    - https://github.com/Creators-of-Create/Create
+  - Create Crafts & Additions
+    - https://github.com/mrh0/createaddition
+  
 - If these pages are not accessible or the data is not enough, ask the user for alternative data sources with the link. Do not use any other unofficial sources without explicit user approval.
 
 ### Supported Multiblocks
@@ -99,3 +111,12 @@ In addition, the application will provide the graphical representation of the un
 1. Industrial Turbine
 2. Fission Reactor
 3. Fusion Reactor
+
+#### AdvancedAE
+1. Quantum Computer
+
+#### ExtendedAE
+1. Matrix Assembler
+
+#### Create / Create Crafts & Additions
+1. Steam Boiler & Steam Engine

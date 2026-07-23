@@ -125,6 +125,34 @@ applyTo: "src/domain/multiblocks.ts, src/App.tsx, src/App.test.tsx, .github/copi
   - `passiveGeneration = thermocoupleEfficiency * casingThermalConductivity * maxCasingTemperature`.
   - Water cooling steam estimate uses `steamEnergyEfficiency * waterHeatingRatio * maxCasingTemperature / waterThermalEnthalpy`.
 
+## Create Steam Boiler & Steam Engine (validated rules)
+- Use official Create source for boiler/engine behavior:
+  - `BoilerData` for level and water constraints.
+  - `BoilerHeaters` for Blaze Burner heat mapping.
+  - `AllBlocks` for Steam Engine stress capacity baseline.
+- Boiler level constraints:
+  - Fluid Tank multiblock is square: footprint is `width * width` (not `width * length`).
+  - Fluid Tank footprint width cap is `3`.
+  - Planner uses `height <= 8` as a practical UI cap because 3x3 footprint reaches boiler-level cap by height 8 with top-tier fuel.
+  - `maxHeatForSize = min(18, floor(tankSize / 4))`.
+  - Planner computes maximum reachable level without user-entered water flow as `boilerLevel = min(activeHeat, maxHeatForSize)`.
+  - Required water flow to sustain that maximum level is `boilerLevel * 10 mB/t`.
+- Blaze Burner heat mapping for planner:
+  - Coal fuel model: `1` heat per burner (KINDLED/FADING equivalent).
+  - Blaze Cake fuel model: `2` heat per burner (SEETHING equivalent).
+  - Lava fuel model: `1` heat per burner (KINDLED/FADING equivalent).
+  - Create Crafts & Additions liquid fuels should map by recipe superheat tier:
+    - Non-superheated liquid fuels: `1` heat per burner.
+    - Superheated liquid fuels: `2` heat per burner.
+- Steam stress capacity model:
+  - Base Steam Engine stress capacity: `1024`.
+  - `engineEfficiency = 1` when `engines <= boilerLevel`, else `boilerLevel / engines`.
+  - `totalSU = engineEfficiency * 16 * engines * 1024`.
+  - Practical interpretation: when engines are fewer than boiler level, total SU scales with engine count; when engines exceed boiler level, total SU is capped by boiler level.
+- Liquid fuel requirement:
+  - When liquid fuel is selected (including C&A liquid fuels), each Blaze Burner requires one Straw in resource output.
+  - Some C&A liquid-burning recipes are conditional on external fluid tags (e.g. `forge:diesel`, `forge:gasoline`, `forge:biodiesel`) and may not exist in a given modpack.
+
 ## Change management
 - When formula or constraint logic changes, update:
   - `src/domain/multiblocks.ts`

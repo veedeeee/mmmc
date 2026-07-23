@@ -1,6 +1,7 @@
 import { useMemo, useState, type KeyboardEvent } from 'react'
 import {
   calculateRequirements,
+  type CreateBoilerFuelType,
   estimateFissionMaxBurnRate,
   FISSION_CRITICAL_TEMPERATURE_K,
   FISSION_DANGER_TEMPERATURE_K,
@@ -42,11 +43,25 @@ type SliderStateDefaults = {
   fissionLogicAdapters: number
   fusionLogicAdapters: number
   fusionInjectionRate: number
+  quantumDataEntanglers: number
+  quantumMultiThreaders: number
+  quantumAccelerators: number
+  quantumStorageBlocks: number
+  matrixPatternCores: number
+  matrixCraftCores: number
+  matrixSpeedCores: number
+  createBlazeBurners: number
+  createSteamEngines: number
+  createFuelType: CreateBoilerFuelType
 }
+
+type QuantumStorageTier = 128 | 256
 
 const TURBINE_MAX_BLADES_PER_ROTOR = 2
 const TURBINE_BLADES_PER_COIL = 4
 const FUSION_MAX_INJECTION = 98
+const MATRIX_SPEED_CORE_MAX = 5
+const CREATE_BOILER_MAX_LEVEL = 18
 const FUSION_BURN_TEMPERATURE_K = 100_000_000
 const FUSION_BURN_RATIO = 1
 const FUSION_PLASMA_CASE_CONDUCTIVITY = 0.2
@@ -95,6 +110,21 @@ const profiles: Record<MultiblockKey, DimensionProfile> = {
     height: { min: 5, max: 5, fixed: 5 },
     length: { min: 5, max: 5, fixed: 5 },
   },
+  quantumComputer: {
+    width: { min: 1, max: 7 },
+    height: { min: 1, max: 7 },
+    length: { min: 1, max: 7 },
+  },
+  matrixAssembler: {
+    width: { min: 3, max: 7 },
+    height: { min: 3, max: 7 },
+    length: { min: 3, max: 7 },
+  },
+  steamBoilerEngine: {
+    width: { min: 1, max: 3 },
+    height: { min: 1, max: 8 },
+    length: { min: 1, max: 3 },
+  },
 }
 
 const structureGroups = {
@@ -106,6 +136,9 @@ const structureGroups = {
     'inductionMatrix',
   ] as MultiblockKey[],
   mekanismGenerators: ['industrialTurbine', 'fissionReactor', 'fusionReactor'] as MultiblockKey[],
+  advancedAe: ['quantumComputer'] as MultiblockKey[],
+  extendedAe: ['matrixAssembler'] as MultiblockKey[],
+  create: ['steamBoilerEngine'] as MultiblockKey[],
 }
 
 const getDefaultDimensions = (type: MultiblockKey): { width: number; height: number; length: number } => {
@@ -149,6 +182,23 @@ const getDefaultSliderState = (
     fissionLogicAdapters: 0,
     fusionLogicAdapters: 0,
     fusionInjectionRate: 2,
+    quantumDataEntanglers: 0,
+    quantumMultiThreaders: 0,
+    quantumAccelerators: 0,
+    quantumStorageBlocks: 0,
+    matrixPatternCores: 1,
+    matrixCraftCores: 1,
+    matrixSpeedCores: 0,
+    createBlazeBurners: 1,
+    createSteamEngines: 4,
+    createFuelType: 'coal',
+  }
+
+  if (type === 'steamBoilerEngine') {
+    const boilerFootprint = Math.max(dimensions.width * dimensions.length, 1)
+    defaults.createBlazeBurners = boilerFootprint
+    defaults.createSteamEngines = CREATE_BOILER_MAX_LEVEL
+    defaults.createFuelType = 'coal'
   }
 
   if (type === 'industrialTurbine') {
@@ -165,6 +215,32 @@ const getDefaultSliderState = (
 
   if (type === 'sps') {
     defaults.spsCoils = 1
+  }
+
+  if (type === 'quantumComputer') {
+    const quantumOptionalSlots = Math.max((dimensions.width - 2) * (dimensions.height - 2) * (dimensions.length - 2) - 1, 0)
+    const quantumDataEntanglers = Math.min(1, quantumOptionalSlots)
+    const optionalAfterEntangler = Math.max(quantumOptionalSlots - quantumDataEntanglers, 0)
+    const quantumMultiThreaders = Math.min(1, optionalAfterEntangler)
+    const optionalAfterSpecials = Math.max(optionalAfterEntangler - quantumMultiThreaders, 0)
+    const quantumStorageBlocks = Math.min(1, optionalAfterSpecials)
+    const quantumAccelerators = Math.max(optionalAfterSpecials - quantumStorageBlocks, 0)
+
+    defaults.quantumDataEntanglers = quantumDataEntanglers
+    defaults.quantumMultiThreaders = quantumMultiThreaders
+    defaults.quantumStorageBlocks = quantumStorageBlocks
+    defaults.quantumAccelerators = quantumAccelerators
+  }
+
+  if (type === 'matrixAssembler') {
+    const matrixInterior = Math.max((dimensions.width - 2) * (dimensions.height - 2) * (dimensions.length - 2), 0)
+    const patternCores = Math.min(1, matrixInterior)
+    const matrixAfterPattern = Math.max(matrixInterior - patternCores, 0)
+    const speedCores = Math.min(5, Math.max(matrixAfterPattern - 1, 0))
+    const craftCores = Math.max(matrixAfterPattern - speedCores, 0)
+    defaults.matrixPatternCores = patternCores
+    defaults.matrixSpeedCores = speedCores
+    defaults.matrixCraftCores = craftCores
   }
 
   return defaults
@@ -198,9 +274,15 @@ const copy = {
       industrialTurbine: 'Industrial Turbine',
       fissionReactor: 'Fission Reactor',
       fusionReactor: 'Fusion Reactor',
+      quantumComputer: 'Quantum Computer',
+      matrixAssembler: 'Matrix Assembler',
+      steamBoilerEngine: 'Steam Boiler & Steam Engine',
     } as Record<MultiblockKey, string>,
     groupMekanism: 'Mekanism',
     groupMekanismGenerators: 'Mekanism Generators',
+    groupAdvancedAe: 'AdvancedAE',
+    groupExtendedAe: 'ExtendedAE',
+    groupCreate: 'Create / Create Crafts & Additions',
     useStructuralGlass: 'Use Structural Glass',
     useReactorGlass: 'Use Reactor Glass',
     evaporationSolarTop: 'Use top solar generator layout',
@@ -210,10 +292,16 @@ const copy = {
     fusionCoolingType: 'Cooling',
     fusionCoolingWater: 'Water-cooled',
     fusionCoolingAir: 'Air-cooled',
+    quantumStorageTier: 'Quantum storage tier',
+    quantumUseDataEntangler: 'Use Quantum Data Entangler',
+    quantumUseMultiThreader: 'Use Quantum Multi-threader',
+    quantumStorage128: '128M',
+    quantumStorage256: '256M',
     toggleOn: 'ON',
     toggleOff: 'OFF',
     numberInputSuffix: 'number input',
     width: 'Width',
+    edge: 'Edge',
     height: 'Height',
     length: 'Length',
     ports: 'Ports / Valves',
@@ -235,6 +323,31 @@ const copy = {
     fissionLogicAdapters: 'Logic adapters',
     fusionLogicAdapters: 'Logic adapters',
     fusionInjectionRate: 'Injection rate',
+    quantumDataEntanglers: 'Quantum Data Entanglers',
+    quantumMultiThreaders: 'Quantum Multi-threaders',
+    quantumAccelerators: 'Quantum Accelerators',
+    quantumStorageBlocks: 'Quantum Storage blocks',
+    matrixPatternCores: 'Assembler Matrix Pattern Cores',
+    matrixCraftCores: 'Assembler Matrix Craft Cores',
+    matrixSpeedCores: 'Assembler Matrix Speed Cores',
+    createBlazeBurners: 'Blaze Burners',
+    createFuelType: 'Boiler fuel type',
+    createShowOptionalFuels: 'Show optional external fuels',
+    createFuelGroupNonSuperheated: 'Non-superheated',
+    createFuelGroupSuperheated: 'Superheated',
+    createFuelGroupOptional: 'Optional (external mod fluids)',
+    createFuelCoal: 'Coal',
+    createFuelBlazeCake: 'Blaze Cake',
+    createFuelLava: 'Lava',
+    createFuelEthanol: 'Ethanol',
+    createFuelCreosote: 'Creosote',
+    createFuelPlantOil: 'Plant Oil',
+    createFuelCrudeOil: 'Crude Oil',
+    createFuelBiofuel: 'Biofuel',
+    createFuelBiodiesel: 'Biodiesel',
+    createFuelDiesel: 'Diesel',
+    createFuelGasoline: 'Gasoline',
+    createSteamEngines: 'Steam Engines',
     specsTitle: 'Functional specs',
     noSpecs: 'No functional spec line for this setup.',
     requirements: 'Required resources',
@@ -260,6 +373,12 @@ const copy = {
         'Turbine internals vary with layout. Rotor, blade, condenser, vent, and coil inputs are treated as planner values.',
       specModelAssumption:
         'Spec values are planner estimates based on default Mekanism server configs and simplified formulas.',
+      pendingImplementation:
+        'This multiblock has been listed, but calculation formulas are not implemented yet. Official source validation is required before enabling spec/resource output.',
+      quantumStructureBoundaryRule:
+        'Official Quantum Computer validator requires Quantum Computer Structural Glass on all outside faces for multiblock formation.',
+      quantumStorageTierRule:
+        'Quantum Core contributes 256M storage. Each selected Quantum Storage block adds its listed storage tier. Quantum Data Entangler multiplies total storage by 4 when included. Quantum Multi-threader uses one inside slot and affects co-processing, not storage capacity.',
       evaporationSolarPatternModel:
         'Evaporation solar layout mode only changes required top-layer blocks. Production is determined by the assumed temperature input.',
       coilSoftCap:
@@ -270,6 +389,14 @@ const copy = {
         'Extra turbine vents beyond disperser-limited flow are counted as build cost, but do not increase calculated throughput.',
       turbineCondenserSoftCap:
         'Extra saturating condensers beyond steam-flow limit are counted as build cost, but do not increase calculated water output.',
+      matrixAssemblerRules:
+        'Assembler Matrix uses frames on all edges, walls/glass on faces, and a fully filled interior of Pattern/Craft/Speed cores with at least one Pattern Core and one Craft Core.',
+      matrixAssemblerSpeedCoreCap:
+        'Assembler Matrix Speed Core acceleration effect is capped at 5 cores; additional speed cores are counted as resources only.',
+      createBoilerRules:
+        'Create Fluid Tank is modeled as a square footprint up to 3x3 with planner max height 8. Boiler level is calculated from the minimum of heat level and tank-size level. Steam output stress is based on Create Steam Engine baseline stress capacity.',
+      createLiquidFuelNeedsStraw:
+        'When liquid fuel is selected, each Blaze Burner requires one Straw for feeding.',
     } as Record<CalculationNoteKey, string>,
     specs: {
       dynamicTankFluidCapacity: 'Fluid capacity',
@@ -308,6 +435,14 @@ const copy = {
       fusionSteamProduction: 'Steam production (estimated)',
       fusionCoolingTransferRate: 'Cooling-side transfer rate (estimated)',
       fusionCasingTemperature: 'Casing temperature (estimated)',
+      quantumTotalStorage: 'Total crafting storage',
+      quantumCoProcessors: 'Co-Processor count',
+      matrixAssemblerPatternSlots: 'Pattern slot capacity',
+      matrixAssemblerMaxConcurrentJobs: 'Max concurrent crafting jobs',
+      matrixAssemblerSpeedCoreEffectiveness: 'Speed core effectiveness',
+      createBoilerLevel: 'Boiler level',
+      createSteamEngineSu: 'Generated stress capacity',
+      createBoilerRequiredWaterFlow: 'Required water flow for max boiler level',
     } as Record<SpecKey, string>,
     resources: {
       dynamicTankCasing: 'Dynamic Tank',
@@ -347,6 +482,23 @@ const copy = {
       fusionReactorController: 'Fusion Reactor Controller',
       fusionReactorLogicAdapter: 'Fusion Reactor Logic Adapter',
       laserFocusMatrix: 'Laser Focus Matrix',
+      quantumCore: 'Quantum Computer Core',
+      quantumDataEntangler: 'Quantum Data Entangler',
+      quantumMultiThreader: 'Quantum Multi-threader',
+      quantumAccelerator: 'Quantum Accelerator',
+      quantumComputerStructuralGlass: 'Quantum Computer Structural Glass',
+      quantumCraftingUnit: 'Quantum Crafting Unit',
+      quantumStorage128: '128M Quantum Computer Storage',
+      quantumStorage256: '256M Quantum Computer Storage',
+      assemblerMatrixFrame: 'Assembler Matrix Frame',
+      assemblerMatrixWall: 'Assembler Matrix Wall/Glass',
+      assemblerMatrixPatternCore: 'Assembler Matrix Pattern Core',
+      assemblerMatrixCraftCore: 'Assembler Matrix Craft Core',
+      assemblerMatrixSpeedCore: 'Assembler Matrix Speed Core',
+      createFluidTank: 'Fluid Tank',
+      createBlazeBurner: 'Blaze Burner',
+      createSteamEngine: 'Steam Engine',
+      createStraw: 'Straw',
     } as Record<ResourceKey, string>,
     footer: 'Data source policy: official Mekanism sources only.',
   },
@@ -365,9 +517,15 @@ const copy = {
       industrialTurbine: '工業用タービン',
       fissionReactor: '核分裂炉',
       fusionReactor: '核融合炉',
+      quantumComputer: '量子コンピューター',
+      matrixAssembler: 'マトリックスアセンブラー',
+      steamBoilerEngine: '蒸気ボイラー & 蒸気エンジン',
     } as Record<MultiblockKey, string>,
     groupMekanism: 'Mekanism',
     groupMekanismGenerators: 'Mekanism Generators',
+    groupAdvancedAe: 'AdvancedAE',
+    groupExtendedAe: 'ExtendedAE',
+    groupCreate: 'Create / Create Crafts & Additions',
     useStructuralGlass: 'Structural Glass を使用',
     useReactorGlass: 'Reactor Glass を使用',
     evaporationSolarTop: '最上層ソーラー発電機配置を使用',
@@ -377,10 +535,16 @@ const copy = {
     fusionCoolingType: '冷却方式',
     fusionCoolingWater: '水冷',
     fusionCoolingAir: '空冷',
+    quantumStorageTier: 'Quantum ストレージ種別',
+    quantumUseDataEntangler: 'Quantum Data Entangler を使用',
+    quantumUseMultiThreader: 'Quantum Multi-threader を使用',
+    quantumStorage128: '128M',
+    quantumStorage256: '256M',
     toggleOn: 'ON',
     toggleOff: 'OFF',
     numberInputSuffix: '数値入力',
     width: '幅',
+    edge: '辺',
     height: '高さ',
     length: '奥行き',
     ports: 'ポート / バルブ数',
@@ -402,6 +566,31 @@ const copy = {
     fissionLogicAdapters: 'Logic Adapter 数',
     fusionLogicAdapters: 'Logic Adapter 数',
     fusionInjectionRate: '注入レート',
+    quantumDataEntanglers: 'Quantum Data Entangler 数',
+    quantumMultiThreaders: 'Quantum Multi-threader 数',
+    quantumAccelerators: 'Quantum Accelerator 数',
+    quantumStorageBlocks: 'Quantum Storage ブロック数',
+    matrixPatternCores: 'Assembler Matrix Pattern Core 数',
+    matrixCraftCores: 'Assembler Matrix Craft Core 数',
+    matrixSpeedCores: 'Assembler Matrix Speed Core 数',
+    createBlazeBurners: 'Blaze Burner 数',
+    createFuelType: 'ボイラー燃料タイプ',
+    createShowOptionalFuels: '外部MOD燃料を表示',
+    createFuelGroupNonSuperheated: '通常加熱',
+    createFuelGroupSuperheated: '過熱',
+    createFuelGroupOptional: 'オプション (外部MOD流体)',
+    createFuelCoal: '石炭',
+    createFuelBlazeCake: 'Blaze Cake',
+    createFuelLava: '溶岩',
+    createFuelEthanol: 'エタノール',
+    createFuelCreosote: 'クレオソート',
+    createFuelPlantOil: '植物油',
+    createFuelCrudeOil: '原油',
+    createFuelBiofuel: 'バイオ燃料',
+    createFuelBiodiesel: 'バイオディーゼル',
+    createFuelDiesel: 'ディーゼル',
+    createFuelGasoline: 'ガソリン',
+    createSteamEngines: 'Steam Engine 数',
     specsTitle: '機能スペック',
     noSpecs: 'この構成で表示できるスペック項目がありません。',
     requirements: '必要リソース',
@@ -427,6 +616,12 @@ const copy = {
         'Turbine 内部は配置自由度があるため、Rotor/Blade/Condenser/Vent/Coil は計画値として扱います。',
       specModelAssumption:
         'スペック値は Mekanism の標準サーバー設定を基準にした簡易モデルの推定値です。',
+      pendingImplementation:
+        'このマルチブロックは一覧に追加済みですが、計算式は未実装です。スペック/必要リソースの出力有効化には公式ソース検証が必要です。',
+      quantumStructureBoundaryRule:
+        'Quantum Computer の公式判定では、マルチブロック外層はすべて Quantum Computer Structural Glass である必要があります。',
+      quantumStorageTierRule:
+        'Quantum Core は 256M を持ち、選択した Quantum Storage ブロックが表記どおりの容量を加算します。Quantum Data Entangler を含めると総容量が 4 倍になります。Quantum Multi-threader は内部スロットを1つ使用し、容量ではなく並列処理側に影響します。',
       evaporationSolarPatternModel:
         '蒸発プラントのソーラー配置モードは必要ブロック数のみを変更します。生産量は想定温度入力で決まります。',
       coilSoftCap:
@@ -437,6 +632,14 @@ const copy = {
         'タービンのベントは、圧力分散器側の流量上限を超えた分は建材としては数えますが、性能には寄与しません。',
       turbineCondenserSoftCap:
         '飽和凝縮器は、蒸気流量上限を超えた分は建材としては数えますが、排水量は増えません。',
+      matrixAssemblerRules:
+        'Assembler Matrix はエッジを Frame、面を Wall/Glass、内部を Pattern/Craft/Speed Core で完全充填し、Pattern Core と Craft Core を最低1つずつ必要とします。',
+      matrixAssemblerSpeedCoreCap:
+        'Assembler Matrix の Speed Core による加速効果は 5 個までが上限で、それ以上は資材数としてのみカウントされます。',
+      createBoilerRules:
+        'Create の Fluid Tank は最大 3x3 の正方フットプリント、プランナー上の最大高さ 8 として扱います。ボイラーレベルは熱レベルとタンクサイズ由来レベルの最小値で決まり、出力SUは Create の Steam Engine 基準ストレス容量に基づいて算出されます。',
+      createLiquidFuelNeedsStraw:
+        '液体燃料を選択した場合、各 Blaze Burner に Straw が1つ必要です。',
     } as Record<CalculationNoteKey, string>,
     specs: {
       dynamicTankFluidCapacity: '流体容量',
@@ -475,6 +678,14 @@ const copy = {
       fusionSteamProduction: '蒸気生成量 (推定)',
       fusionCoolingTransferRate: '冷却側移送レート (推定)',
       fusionCasingTemperature: 'ケーシング温度 (推定)',
+      quantumTotalStorage: '総クラフトストレージ',
+      quantumCoProcessors: 'Co-Processor 数',
+      matrixAssemblerPatternSlots: 'パターンスロット容量',
+      matrixAssemblerMaxConcurrentJobs: '最大同時クラフトジョブ数',
+      matrixAssemblerSpeedCoreEffectiveness: 'Speed Core 効果率',
+      createBoilerLevel: 'ボイラーレベル',
+      createSteamEngineSu: '生成ストレス容量',
+      createBoilerRequiredWaterFlow: '最大ボイラーレベルで必要な水流量',
     } as Record<SpecKey, string>,
     resources: {
       dynamicTankCasing: 'ダイナミックタンク',
@@ -514,6 +725,23 @@ const copy = {
       fusionReactorController: '核融合炉制御装置',
       fusionReactorLogicAdapter: '核融合炉論理アダプター',
       laserFocusMatrix: 'レーザーフォーカスマトリックス',
+      quantumCore: 'Quantum Computer Core',
+      quantumDataEntangler: 'Quantum Data Entangler',
+      quantumMultiThreader: 'Quantum Multi-threader',
+      quantumAccelerator: 'Quantum Accelerator',
+      quantumComputerStructuralGlass: 'Quantum Computer Structural Glass',
+      quantumCraftingUnit: 'Quantum Crafting Unit',
+      quantumStorage128: '128M Quantum Computer Storage',
+      quantumStorage256: '256M Quantum Computer Storage',
+      assemblerMatrixFrame: 'Assembler Matrix Frame',
+      assemblerMatrixWall: 'Assembler Matrix Wall/Glass',
+      assemblerMatrixPatternCore: 'Assembler Matrix Pattern Core',
+      assemblerMatrixCraftCore: 'Assembler Matrix Craft Core',
+      assemblerMatrixSpeedCore: 'Assembler Matrix Speed Core',
+      createFluidTank: 'Fluid Tank',
+      createBlazeBurner: 'Blaze Burner',
+      createSteamEngine: 'Steam Engine',
+      createStraw: 'Straw',
     } as Record<ResourceKey, string>,
     footer: 'データソース方針: Mekanism公式情報のみを使用します。',
   },
@@ -555,6 +783,18 @@ function App() {
   const [fusionInjectionRateInput, setFusionInjectionRateInput] = useState(
     initialDefaults.fusionInjectionRate,
   )
+  const [quantumStorageTier, setQuantumStorageTier] = useState<QuantumStorageTier>(256)
+  const [quantumDataEntanglersInput, setQuantumDataEntanglersInput] = useState(initialDefaults.quantumDataEntanglers)
+  const [quantumMultiThreadersInput, setQuantumMultiThreadersInput] = useState(initialDefaults.quantumMultiThreaders)
+  const [quantumAcceleratorsInput, setQuantumAcceleratorsInput] = useState(initialDefaults.quantumAccelerators)
+  const [quantumStorageBlocksInput, setQuantumStorageBlocksInput] = useState(initialDefaults.quantumStorageBlocks)
+  const [matrixPatternCoresInput, setMatrixPatternCoresInput] = useState(initialDefaults.matrixPatternCores)
+  const [matrixCraftCoresInput, setMatrixCraftCoresInput] = useState(initialDefaults.matrixCraftCores)
+  const [matrixSpeedCoresInput, setMatrixSpeedCoresInput] = useState(initialDefaults.matrixSpeedCores)
+  const [createBlazeBurnersInput, setCreateBlazeBurnersInput] = useState(initialDefaults.createBlazeBurners)
+  const [createSteamEnginesInput, setCreateSteamEnginesInput] = useState(initialDefaults.createSteamEngines)
+  const [createFuelType, setCreateFuelType] = useState<CreateBoilerFuelType>(initialDefaults.createFuelType)
+  const [createShowOptionalFuels, setCreateShowOptionalFuels] = useState(false)
   const [useStructuralGlass, setUseStructuralGlass] = useState(false)
   const [useReactorGlass, setUseReactorGlass] = useState(false)
   const [evaporationUseSolarGenerators, setEvaporationUseSolarGenerators] = useState(false)
@@ -565,9 +805,11 @@ function App() {
   const width = profile.width.fixed ?? widthInput
   const height = profile.height.fixed ?? heightInput
   const length = profile.length.fixed ?? lengthInput
+  const steamTankEdge = multiblockType === 'steamBoilerEngine' ? width : 0
+  const effectiveLength = multiblockType === 'steamBoilerEngine' ? steamTankEdge : length
 
-  const shellBlocksByDimensions = outerShellBlocks(width, height, length)
-  const innerVolumeByDimensions = innerVolume(width, height, length)
+  const shellBlocksByDimensions = outerShellBlocks(width, height, effectiveLength)
+  const innerVolumeByDimensions = innerVolume(width, height, effectiveLength)
   const turbineRotorHeightMax = Math.max(height - 4, 1)
   const turbineBladesPerRotorMax = TURBINE_MAX_BLADES_PER_ROTOR
   const turbinePlaneMax = Math.max((width - 2) * (length - 2), 1)
@@ -598,6 +840,7 @@ function App() {
     multiblockType === 'thermoelectricBoiler' ||
     multiblockType === 'fissionReactor' ||
     multiblockType === 'fusionReactor'
+  const portsApplicable = minimumPortsByType[multiblockType] > 0
 
   const boilerSteamHeight = Math.min(Math.max(boilerSteamHeightInput, 1), boilerSteamHeightMax)
   const boilerWaterHeight = Math.max(height - boilerSteamHeight - 2, 0)
@@ -629,6 +872,43 @@ function App() {
   const fissionMaxBurnRateBySetup = estimateFissionMaxBurnRate(fissionAssemblies * fissionAssemblyHeight)
   const fissionBurnRate = Math.min(Math.max(fissionBurnRateInput, 0), fissionMaxBurnRateBySetup)
   const fusionInjectionRate = clampValue(Math.floor(fusionInjectionRateInput / 2) * 2, 0, FUSION_MAX_INJECTION)
+  const quantumOptionalSlots = multiblockType === 'quantumComputer' ? Math.max(innerVolumeByDimensions - 1, 0) : 0
+  const quantumDataEntanglers = Math.min(Math.max(quantumDataEntanglersInput, 0), Math.min(quantumOptionalSlots, 1))
+  const quantumMultiThreaderMax = Math.min(Math.max(quantumOptionalSlots - quantumDataEntanglers, 0), 1)
+  const quantumMultiThreaders = Math.min(Math.max(quantumMultiThreadersInput, 0), quantumMultiThreaderMax)
+  const quantumAcceleratorsMax = Math.max(quantumOptionalSlots - quantumDataEntanglers - quantumMultiThreaders, 0)
+  const quantumAccelerators = Math.min(Math.max(quantumAcceleratorsInput, 0), quantumAcceleratorsMax)
+  const quantumStorageBlocksMax = Math.max(quantumAcceleratorsMax - quantumAccelerators, 0)
+  const quantumStorageBlocks = Math.min(Math.max(quantumStorageBlocksInput, 0), quantumStorageBlocksMax)
+  const matrixInteriorSlots = multiblockType === 'matrixAssembler' ? innerVolumeByDimensions : 0
+  const matrixPatternCraftMin = matrixInteriorSlots >= 2 ? 1 : 0
+  const matrixPatternInput = Math.max(Math.floor(matrixPatternCoresInput), matrixPatternCraftMin)
+  const matrixCraftInput = Math.max(Math.floor(matrixCraftCoresInput), matrixPatternCraftMin)
+  const matrixSpeedInput = Math.max(Math.floor(matrixSpeedCoresInput), 0)
+  const matrixSpeedHardMax = Math.min(MATRIX_SPEED_CORE_MAX, Math.max(matrixInteriorSlots - matrixPatternCraftMin * 2, 0))
+  const matrixSpeedBase = Math.min(matrixSpeedInput, matrixSpeedHardMax)
+  const matrixCraftBase = Math.min(
+    matrixCraftInput,
+    Math.max(matrixInteriorSlots - matrixSpeedBase - matrixPatternCraftMin, 0),
+  )
+
+  const matrixPatternPreMax = Math.max(matrixInteriorSlots - matrixCraftBase - matrixSpeedBase, 0)
+  const matrixPatternCores = Math.min(matrixPatternInput, matrixPatternPreMax)
+  const matrixCraftPreMax = Math.max(matrixInteriorSlots - matrixPatternCores - matrixSpeedBase, 0)
+  const matrixCraftCores = Math.min(matrixCraftBase, matrixCraftPreMax)
+  const matrixSpeedPreMax = Math.min(MATRIX_SPEED_CORE_MAX, Math.max(matrixInteriorSlots - matrixPatternCores - matrixCraftCores, 0))
+  const matrixSpeedCores = Math.min(matrixSpeedBase, matrixSpeedPreMax)
+
+  const matrixPatternCoresMax = Math.max(matrixInteriorSlots - matrixCraftCores - matrixSpeedCores, 0)
+  const matrixCraftCoresMax = Math.max(matrixInteriorSlots - matrixPatternCores - matrixSpeedCores, 0)
+  const matrixSpeedCoresMax = Math.min(MATRIX_SPEED_CORE_MAX, Math.max(matrixInteriorSlots - matrixPatternCores - matrixCraftCores, 0))
+  const matrixPatternCoresMin = matrixPatternCoresMax >= 1 ? 1 : 0
+  const matrixCraftCoresMin = matrixCraftCoresMax >= 1 ? 1 : 0
+  const createBlazeBurnersMax = Math.max(steamTankEdge * steamTankEdge, 1)
+  const createBlazeBurners = clampValue(createBlazeBurnersInput, 1, createBlazeBurnersMax)
+  const createSteamEngines = clampValue(createSteamEnginesInput, 1, CREATE_BOILER_MAX_LEVEL)
+  const isOptionalCreateFuel = (fuelType: CreateBoilerFuelType): boolean =>
+    fuelType === 'biodiesel' || fuelType === 'diesel' || fuelType === 'gasoline'
   const fusionCoolingMode: FusionCoolingMode = coolantType === 'water' ? 'waterCooled' : 'airCooled'
   const fusionIsWaterCooled = fusionCoolingMode === 'waterCooled'
 
@@ -636,7 +916,7 @@ function App() {
     () =>
       calculateRequirements({
         type: multiblockType,
-        dimensions: { width, height, length },
+        dimensions: { width, height, length: effectiveLength },
         ports,
         useStructuralGlass,
         useReactorGlass,
@@ -645,6 +925,12 @@ function App() {
         coolantType,
         matrixCells: matrixCellsInput,
         matrixProviders: matrixProvidersInput,
+        matrixPatternCores,
+        matrixCraftCores,
+        matrixSpeedCores,
+        createBlazeBurners,
+        createFuelType,
+        createSteamEngines,
         spsCoils: spsCoilsInput,
         boilerSteamHeight,
         boilerSuperheatingElements,
@@ -659,12 +945,17 @@ function App() {
         fissionLogicAdapters,
         fusionLogicAdapters: fusionLogicAdaptersInput,
         fusionInjectionRate,
+        quantumStorageTier,
+        quantumDataEntanglers,
+        quantumMultiThreaders,
+        quantumAccelerators,
+        quantumStorageBlocks,
       }),
     [
       multiblockType,
       width,
       height,
-      length,
+      effectiveLength,
       ports,
       useStructuralGlass,
       useReactorGlass,
@@ -673,6 +964,12 @@ function App() {
       coolantType,
       matrixCellsInput,
       matrixProvidersInput,
+      matrixPatternCores,
+      matrixCraftCores,
+      matrixSpeedCores,
+      createBlazeBurners,
+      createFuelType,
+      createSteamEngines,
       spsCoilsInput,
       boilerSteamHeight,
       boilerSuperheatingElements,
@@ -687,6 +984,11 @@ function App() {
       fissionLogicAdapters,
       fusionLogicAdaptersInput,
       fusionInjectionRate,
+      quantumStorageTier,
+      quantumDataEntanglers,
+      quantumMultiThreaders,
+      quantumAccelerators,
+      quantumStorageBlocks,
     ],
   )
 
@@ -918,6 +1220,18 @@ function App() {
     setFissionLogicAdaptersInput(nextDefaults.fissionLogicAdapters)
     setFusionLogicAdaptersInput(nextDefaults.fusionLogicAdapters)
     setFusionInjectionRateInput(nextDefaults.fusionInjectionRate)
+    setQuantumStorageTier(256)
+    setQuantumDataEntanglersInput(nextDefaults.quantumDataEntanglers)
+    setQuantumMultiThreadersInput(nextDefaults.quantumMultiThreaders)
+    setQuantumAcceleratorsInput(nextDefaults.quantumAccelerators)
+    setQuantumStorageBlocksInput(nextDefaults.quantumStorageBlocks)
+    setMatrixPatternCoresInput(nextDefaults.matrixPatternCores)
+    setMatrixCraftCoresInput(nextDefaults.matrixCraftCores)
+    setMatrixSpeedCoresInput(nextDefaults.matrixSpeedCores)
+    setCreateBlazeBurnersInput(nextDefaults.createBlazeBurners)
+    setCreateSteamEnginesInput(nextDefaults.createSteamEngines)
+    setCreateFuelType(nextDefaults.createFuelType)
+    setCreateShowOptionalFuels(false)
     setUseStructuralGlass(false)
     setUseReactorGlass(false)
     setEvaporationUseSolarGenerators(false)
@@ -957,6 +1271,27 @@ function App() {
             </optgroup>
             <optgroup label={t.groupMekanismGenerators}>
               {structureGroups.mekanismGenerators.map((key) => (
+                <option key={key} value={key}>
+                  {t.structureType[key]}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label={t.groupAdvancedAe}>
+              {structureGroups.advancedAe.map((key) => (
+                <option key={key} value={key}>
+                  {t.structureType[key]}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label={t.groupExtendedAe}>
+              {structureGroups.extendedAe.map((key) => (
+                <option key={key} value={key}>
+                  {t.structureType[key]}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label={t.groupCreate}>
+              {structureGroups.create.map((key) => (
                 <option key={key} value={key}>
                   {t.structureType[key]}
                 </option>
@@ -1018,6 +1353,65 @@ function App() {
           </div>
         )}
 
+        {multiblockType === 'quantumComputer' && (
+          <div className="toggle-row">
+            <button
+              type="button"
+              className={`switch-button toggle-button ${quantumStorageTier === 256 ? 'is-on' : 'is-off'}`}
+              aria-pressed={quantumStorageTier === 256}
+              onClick={() => setQuantumStorageTier((current) => (current === 128 ? 256 : 128))}
+            >
+              {t.quantumStorageTier}: {quantumStorageTier === 256 ? t.quantumStorage256 : t.quantumStorage128}
+            </button>
+          </div>
+        )}
+
+        {multiblockType === 'steamBoilerEngine' && (
+          <>
+            <div className="toggle-row">
+              <button
+                type="button"
+                className={`switch-button toggle-button ${createShowOptionalFuels ? 'is-on' : 'is-off'}`}
+                aria-pressed={createShowOptionalFuels}
+                onClick={() => {
+                  const next = !createShowOptionalFuels
+                  if (!next && isOptionalCreateFuel(createFuelType)) {
+                    setCreateFuelType('coal')
+                  }
+                  setCreateShowOptionalFuels(next)
+                }}
+              >
+                {t.createShowOptionalFuels}: {createShowOptionalFuels ? t.toggleOn : t.toggleOff}
+              </button>
+            </div>
+
+            <label className="select-field">
+              <span>{t.createFuelType}</span>
+              <select value={createFuelType} onChange={(event) => setCreateFuelType(event.target.value as CreateBoilerFuelType)}>
+                <optgroup label={t.createFuelGroupNonSuperheated}>
+                  <option value="coal">{t.createFuelCoal}</option>
+                  <option value="lava">{t.createFuelLava}</option>
+                  <option value="ethanol">{t.createFuelEthanol}</option>
+                  <option value="creosote">{t.createFuelCreosote}</option>
+                  <option value="plantoil">{t.createFuelPlantOil}</option>
+                  <option value="crudeOil">{t.createFuelCrudeOil}</option>
+                </optgroup>
+                <optgroup label={t.createFuelGroupSuperheated}>
+                  <option value="blazeCake">{t.createFuelBlazeCake}</option>
+                  <option value="biofuel">{t.createFuelBiofuel}</option>
+                </optgroup>
+                {createShowOptionalFuels && (
+                  <optgroup label={t.createFuelGroupOptional}>
+                    <option value="biodiesel">{t.createFuelBiodiesel}</option>
+                    <option value="diesel">{t.createFuelDiesel}</option>
+                    <option value="gasoline">{t.createFuelGasoline}</option>
+                  </optgroup>
+                )}
+              </select>
+            </label>
+          </>
+        )}
+
         {multiblockType === 'industrialTurbine' && (
           <div className="toggle-row">
             <button
@@ -1034,7 +1428,7 @@ function App() {
         <div className="field-grid">
           {renderRangeControl({
             id: 'width',
-            label: t.width,
+            label: multiblockType === 'steamBoilerEngine' ? t.edge : t.width,
             min: profile.width.min,
             max: profile.width.max,
             value: width,
@@ -1052,24 +1446,26 @@ function App() {
             onChange: setHeightInput,
           })}
 
-          {renderRangeControl({
-            id: 'length',
-            label: t.length,
-            min: profile.length.min,
-            max: profile.length.max,
-            value: length,
-            disabled: profile.length.fixed !== undefined,
-            onChange: setLengthInput,
-          })}
+          {multiblockType !== 'steamBoilerEngine' &&
+            renderRangeControl({
+              id: 'length',
+              label: t.length,
+              min: profile.length.min,
+              max: profile.length.max,
+              value: length,
+              disabled: profile.length.fixed !== undefined,
+              onChange: setLengthInput,
+            })}
 
-          {renderRangeControl({
-            id: 'ports',
-            label: t.ports,
-            min: minimumPorts,
-            max: portsMax,
-            value: ports,
-            onChange: setPortsInput,
-          })}
+          {portsApplicable &&
+            renderRangeControl({
+              id: 'ports',
+              label: t.ports,
+              min: minimumPorts,
+              max: portsMax,
+              value: ports,
+              onChange: setPortsInput,
+            })}
 
           {multiblockType === 'inductionMatrix' && (
             <>
@@ -1088,6 +1484,35 @@ function App() {
                 max: innerVolumeByDimensions,
                 value: matrixProvidersInput,
                 onChange: setMatrixProvidersInput,
+              })}
+            </>
+          )}
+
+          {multiblockType === 'matrixAssembler' && (
+            <>
+              {renderRangeControl({
+                id: 'matrix-pattern-cores',
+                label: t.matrixPatternCores,
+                min: matrixPatternCoresMin,
+                max: matrixPatternCoresMax,
+                value: matrixPatternCores,
+                onChange: setMatrixPatternCoresInput,
+              })}
+              {renderRangeControl({
+                id: 'matrix-craft-cores',
+                label: t.matrixCraftCores,
+                min: matrixCraftCoresMin,
+                max: matrixCraftCoresMax,
+                value: matrixCraftCores,
+                onChange: setMatrixCraftCoresInput,
+              })}
+              {renderRangeControl({
+                id: 'matrix-speed-cores',
+                label: t.matrixSpeedCores,
+                min: 0,
+                max: matrixSpeedCoresMax,
+                value: matrixSpeedCores,
+                onChange: setMatrixSpeedCoresInput,
               })}
             </>
           )}
@@ -1234,6 +1659,64 @@ function App() {
                 max: FUSION_MAX_INJECTION,
                 value: fusionInjectionRate,
                 onChange: setFusionInjectionRateInput,
+              })}
+            </>
+          )}
+
+          {multiblockType === 'quantumComputer' && (
+            <>
+              {renderRangeControl({
+                id: 'quantum-data-entanglers',
+                label: t.quantumDataEntanglers,
+                min: 0,
+                max: 1,
+                value: quantumDataEntanglers,
+                onChange: setQuantumDataEntanglersInput,
+              })}
+              {renderRangeControl({
+                id: 'quantum-multi-threaders',
+                label: t.quantumMultiThreaders,
+                min: 0,
+                max: quantumMultiThreaderMax,
+                value: quantumMultiThreaders,
+                onChange: setQuantumMultiThreadersInput,
+              })}
+              {renderRangeControl({
+                id: 'quantum-accelerators',
+                label: t.quantumAccelerators,
+                min: 0,
+                max: quantumAcceleratorsMax,
+                value: quantumAccelerators,
+                onChange: setQuantumAcceleratorsInput,
+              })}
+              {renderRangeControl({
+                id: 'quantum-storage-blocks',
+                label: t.quantumStorageBlocks,
+                min: 0,
+                max: quantumStorageBlocksMax,
+                value: quantumStorageBlocks,
+                onChange: setQuantumStorageBlocksInput,
+              })}
+            </>
+          )}
+
+          {multiblockType === 'steamBoilerEngine' && (
+            <>
+              {renderRangeControl({
+                id: 'create-blaze-burners',
+                label: t.createBlazeBurners,
+                min: 1,
+                max: createBlazeBurnersMax,
+                value: createBlazeBurners,
+                onChange: setCreateBlazeBurnersInput,
+              })}
+              {renderRangeControl({
+                id: 'create-steam-engines',
+                label: t.createSteamEngines,
+                min: 1,
+                max: CREATE_BOILER_MAX_LEVEL,
+                value: createSteamEngines,
+                onChange: setCreateSteamEnginesInput,
               })}
             </>
           )}
