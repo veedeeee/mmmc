@@ -23,6 +23,31 @@ describe('App', () => {
     expect(screen.getByText('流体容量', { selector: 'dt' })).toBeInTheDocument()
   })
 
+  it('localizes Japanese input labels and resource names for Mekanism, Matrix, Quantum, and Steam Boiler', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: '日本語' }))
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'inductionMatrix' } })
+    expect(screen.getByLabelText('インダクションセル数')).toBeInTheDocument()
+    expect(screen.getByLabelText('インダクションプロバイダー数')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'matrixAssembler' } })
+    expect(screen.getByLabelText('アセンブラーマトリックス・パターンコア数')).toBeInTheDocument()
+    expect(screen.getByText('アセンブラーマトリックスフレーム', { selector: 'dt *' })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'quantumComputer' } })
+    expect(screen.getByLabelText('量子データエンタングラー数')).toBeInTheDocument()
+    expect(screen.getByText('量子コンピューターコア', { selector: 'dt *' })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'steamBoilerEngine' } })
+    expect(screen.getByLabelText('ブレイズバーナー数')).toBeInTheDocument()
+    expect(screen.getByLabelText('スチームエンジン数')).toBeInTheDocument()
+    expect(screen.getByText('流体タンク', { selector: 'dt *' })).toBeInTheDocument()
+    expect(screen.getByText('ブレイズバーナー', { selector: 'dt *' })).toBeInTheDocument()
+    expect(screen.getByText('スチームエンジン', { selector: 'dt *' })).toBeInTheDocument()
+  })
+
   it('shows fixed fusion dimensions and fusion specs/resources', () => {
     render(<App />)
 
@@ -82,7 +107,7 @@ describe('App', () => {
     expect(screen.getByText('Required water flow for max boiler level', { selector: 'dt' }).closest('div')?.querySelector('dd')).toHaveTextContent('90 mB/t')
 
     fireEvent.change(screen.getByLabelText('Boiler fuel type'), { target: { value: 'blazeCake' } })
-    expect(screen.getByText('Boiler level', { selector: 'dt' }).closest('div')?.querySelector('dd')).toHaveTextContent('18 lvl')
+    expect(screen.getByText('Boiler level', { selector: 'dt' }).closest('div')?.querySelector('dd')).toHaveTextContent('18 lvl (Max)')
     expect(screen.getByText('Required water flow for max boiler level', { selector: 'dt' }).closest('div')?.querySelector('dd')).toHaveTextContent('180 mB/t')
 
     fireEvent.click(screen.getByRole('button', { name: 'Show optional external fuels: OFF' }))
