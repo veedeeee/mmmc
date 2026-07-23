@@ -372,7 +372,7 @@ const copy = {
       turbineApproximation:
         'Turbine internals vary with layout. Rotor, blade, condenser, vent, and coil inputs are treated as planner values.',
       specModelAssumption:
-        'Spec values are planner estimates based on default Mekanism server configs and simplified formulas.',
+        'Spec values are planner estimates based on default mod/server configurations and simplified formulas.',
       pendingImplementation:
         'This multiblock has been listed, but calculation formulas are not implemented yet. Official source validation is required before enabling spec/resource output.',
       quantumStructureBoundaryRule:
@@ -615,7 +615,7 @@ const copy = {
       turbineApproximation:
         'Turbine 内部は配置自由度があるため、Rotor/Blade/Condenser/Vent/Coil は計画値として扱います。',
       specModelAssumption:
-        'スペック値は Mekanism の標準サーバー設定を基準にした簡易モデルの推定値です。',
+        'スペック値は各MOD/サーバーの標準設定を基準にした簡易モデルの推定値です。',
       pendingImplementation:
         'このマルチブロックは一覧に追加済みですが、計算式は未実装です。スペック/必要リソースの出力有効化には公式ソース検証が必要です。',
       quantumStructureBoundaryRule:
