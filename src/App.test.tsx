@@ -23,6 +23,31 @@ describe('App', () => {
     expect(screen.getByText('流体容量', { selector: 'dt' })).toBeInTheDocument()
   })
 
+  it('localizes Japanese input labels and resource names for Mekanism, Matrix, Quantum, and Steam Boiler', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: '日本語' }))
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'inductionMatrix' } })
+    expect(screen.getByLabelText('インダクションセル数')).toBeInTheDocument()
+    expect(screen.getByLabelText('インダクションプロバイダー数')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'matrixAssembler' } })
+    expect(screen.getByLabelText('アセンブラーマトリックス・パターンコア数')).toBeInTheDocument()
+    expect(screen.getByText('アセンブラーマトリックスフレーム', { selector: 'dt *' })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'quantumComputer' } })
+    expect(screen.getByLabelText('量子データエンタングラー数')).toBeInTheDocument()
+    expect(screen.getByText('量子コンピューターコア', { selector: 'dt *' })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'steamBoilerEngine' } })
+    expect(screen.getByLabelText('ブレイズバーナー数')).toBeInTheDocument()
+    expect(screen.getByLabelText('スチームエンジン数')).toBeInTheDocument()
+    expect(screen.getByText('流体タンク', { selector: 'dt *' })).toBeInTheDocument()
+    expect(screen.getByText('ブレイズバーナー', { selector: 'dt *' })).toBeInTheDocument()
+    expect(screen.getByText('スチームエンジン', { selector: 'dt *' })).toBeInTheDocument()
+  })
+
   it('shows fixed fusion dimensions and fusion specs/resources', () => {
     render(<App />)
 
@@ -32,6 +57,181 @@ describe('App', () => {
     expect(widthInput).toBeDisabled()
     expect(screen.getByText('Fuel capacity', { selector: 'dt' })).toBeInTheDocument()
     expect(screen.getByText('Fusion Reactor Controller')).toBeInTheDocument()
+  })
+
+  it('shows newly listed modded multiblocks and implements create steam boiler calculations', () => {
+    render(<App />)
+
+    expect(screen.getByRole('group', { name: 'AdvancedAE' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'ExtendedAE' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Create / Create Crafts & Additions' })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'steamBoilerEngine' } })
+
+    expect(screen.getByLabelText('Edge')).toHaveValue('3')
+    expect(screen.getByLabelText('Height')).toHaveValue('8')
+    expect(screen.queryByLabelText('Length')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Boiler fuel type')).toHaveValue('coal')
+    expect(screen.getByRole('group', { name: 'Non-superheated' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Superheated' })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Optional (external mod fluids)' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Coal' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Blaze Cake' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Lava' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Biofuel' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Diesel' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Gasoline' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Blaze Burners number input')).toHaveValue(9)
+    expect(screen.getByLabelText('Steam Engines number input')).toHaveValue(18)
+    expect(screen.getByLabelText('Blaze Burners number input')).toHaveAttribute('max', '9')
+
+    const boilerLevelRow = screen.getByText('Boiler level', { selector: 'dt' }).closest('div')
+    const suRow = screen.getByText('Generated stress capacity', { selector: 'dt' }).closest('div')
+    const waterRow = screen.getByText('Required water flow for max boiler level', { selector: 'dt' }).closest('div')
+    const tankRow = screen.getByText('Fluid Tank', { selector: 'dt *' }).closest('div')
+    const burnerRow = screen.getByText('Blaze Burner', { selector: 'dt *' }).closest('div')
+    const engineRow = screen.getByText('Steam Engine', { selector: 'dt *' }).closest('div')
+
+    expect(boilerLevelRow?.querySelector('dd')).toHaveTextContent('9 lvl')
+    expect(suRow?.querySelector('dd')).toHaveTextContent('147,456 SU')
+    expect(waterRow?.querySelector('dd')).toHaveTextContent('90 mB/t')
+    expect(tankRow?.querySelector('dd')).toHaveTextContent('72')
+    expect(burnerRow?.querySelector('dd')).toHaveTextContent('9')
+    expect(engineRow?.querySelector('dd')).toHaveTextContent('18')
+
+    expect(screen.queryByText('Straw', { selector: 'dt *' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Boiler fuel type'), { target: { value: 'lava' } })
+    const strawRow = screen.getByText('Straw', { selector: 'dt *' }).closest('div')
+    expect(strawRow?.querySelector('dd')).toHaveTextContent('9')
+    expect(screen.getByText('Boiler level', { selector: 'dt' }).closest('div')?.querySelector('dd')).toHaveTextContent('9 lvl')
+    expect(screen.getByText('Required water flow for max boiler level', { selector: 'dt' }).closest('div')?.querySelector('dd')).toHaveTextContent('90 mB/t')
+
+    fireEvent.change(screen.getByLabelText('Boiler fuel type'), { target: { value: 'blazeCake' } })
+    expect(screen.getByText('Boiler level', { selector: 'dt' }).closest('div')?.querySelector('dd')).toHaveTextContent('18 lvl (Max)')
+    expect(screen.getByText('Required water flow for max boiler level', { selector: 'dt' }).closest('div')?.querySelector('dd')).toHaveTextContent('180 mB/t')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show optional external fuels: OFF' }))
+    expect(screen.getByRole('group', { name: 'Optional (external mod fluids)' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Diesel' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Gasoline' })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Steam Engines number input'), { target: { value: '1' } })
+    expect(screen.getByText('Generated stress capacity', { selector: 'dt' }).closest('div')?.querySelector('dd')).toHaveTextContent('16,384 SU')
+
+    fireEvent.change(screen.getByLabelText('Edge number input'), { target: { value: '1' } })
+    expect(screen.getByLabelText('Blaze Burners number input')).toHaveAttribute('max', '1')
+    expect(screen.getByLabelText('Blaze Burners number input')).toHaveValue(1)
+  })
+
+  it('implements matrix assembler structure rules and specs', () => {
+    render(<App />)
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'matrixAssembler' } })
+
+    expect(screen.queryByLabelText('Ports / Valves')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Width')).toHaveValue('7')
+    expect(screen.getByLabelText('Height')).toHaveValue('7')
+    expect(screen.getByLabelText('Length')).toHaveValue('7')
+    expect(screen.getByLabelText('Assembler Matrix Speed Cores number input')).toHaveAttribute('max', '5')
+    expect(screen.getByLabelText('Assembler Matrix Pattern Cores number input')).toHaveAttribute('min', '1')
+    expect(screen.getByLabelText('Assembler Matrix Craft Cores number input')).toHaveAttribute('min', '1')
+    expect(screen.getByLabelText('Assembler Matrix Pattern Cores number input')).toHaveAttribute('max', '1')
+    expect(screen.getByLabelText('Assembler Matrix Craft Cores number input')).toHaveAttribute('max', '119')
+    expect(screen.getByLabelText('Assembler Matrix Speed Cores number input')).toHaveAttribute('max', '5')
+    expect(screen.getByLabelText('Assembler Matrix Pattern Cores number input')).toHaveValue(1)
+    expect(screen.getByLabelText('Assembler Matrix Craft Cores number input')).toHaveValue(119)
+    expect(screen.getByLabelText('Assembler Matrix Speed Cores number input')).toHaveValue(5)
+
+    const jobsRow = screen.getByText('Max concurrent crafting jobs', { selector: 'dt' }).closest('div')
+    const slotRow = screen.getByText('Pattern slot capacity', { selector: 'dt' }).closest('div')
+    const speedEffectRow = screen.getByText('Speed core effectiveness', { selector: 'dt' }).closest('div')
+    const frameRow = screen.getByText('Assembler Matrix Frame', { selector: 'dt *' }).closest('div')
+    const wallRow = screen.getByText('Assembler Matrix Wall/Glass', { selector: 'dt *' }).closest('div')
+
+    expect(jobsRow?.querySelector('dd')).toHaveTextContent('952 jobs')
+    expect(slotRow?.querySelector('dd')).toHaveTextContent('36 slots')
+    expect(speedEffectRow?.querySelector('dd')).toHaveTextContent('100 %')
+    expect(frameRow?.querySelector('dd')).toHaveTextContent('68')
+    expect(wallRow?.querySelector('dd')).toHaveTextContent('150')
+
+    fireEvent.change(screen.getByLabelText('Assembler Matrix Craft Cores number input'), { target: { value: '0' } })
+    expect(screen.getByLabelText('Assembler Matrix Craft Cores number input')).toHaveValue(1)
+    expect(screen.getByLabelText('Assembler Matrix Pattern Cores number input')).toHaveAttribute('max', '119')
+    fireEvent.change(screen.getByLabelText('Assembler Matrix Pattern Cores number input'), { target: { value: '121' } })
+    expect(screen.getByLabelText('Assembler Matrix Pattern Cores number input')).toHaveValue(119)
+    expect(screen.getByLabelText('Assembler Matrix Craft Cores number input')).toHaveAttribute('max', '1')
+    expect(screen.getByLabelText('Assembler Matrix Speed Cores number input')).toHaveAttribute('max', '5')
+
+    fireEvent.change(screen.getByLabelText('Assembler Matrix Speed Cores number input'), { target: { value: '10' } })
+    expect(screen.getByLabelText('Assembler Matrix Speed Cores number input')).toHaveValue(5)
+
+    fireEvent.change(screen.getByLabelText('Height number input'), { target: { value: '3' } })
+    fireEvent.change(screen.getByLabelText('Width number input'), { target: { value: '3' } })
+    fireEvent.change(screen.getByLabelText('Length number input'), { target: { value: '3' } })
+    expect(screen.getByLabelText('Assembler Matrix Pattern Cores number input')).toHaveAttribute('min', '0')
+    expect(screen.getByLabelText('Assembler Matrix Craft Cores number input')).toHaveAttribute('min', '0')
+  })
+
+  it('implements quantum computer controls and resource/spec calculation', () => {
+    render(<App />)
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'quantumComputer' } })
+
+    expect(screen.queryByLabelText('Ports / Valves')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Quantum storage tier: 256M' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Quantum Data Entanglers')).toBeInTheDocument()
+    expect(screen.getByLabelText('Quantum Multi-threaders')).toBeInTheDocument()
+    expect(screen.getByLabelText('Quantum Accelerators')).toBeInTheDocument()
+    expect(screen.getByLabelText('Quantum Storage blocks')).toBeInTheDocument()
+    expect(screen.getByLabelText('Quantum Data Entanglers number input')).toHaveAttribute('min', '0')
+    expect(screen.getByLabelText('Quantum Data Entanglers number input')).toHaveAttribute('max', '1')
+    expect(screen.getByLabelText('Quantum Multi-threaders number input')).toHaveAttribute('min', '0')
+    expect(screen.getByLabelText('Quantum Multi-threaders number input')).toHaveAttribute('max', '1')
+    expect(screen.getByLabelText('Quantum Data Entanglers number input')).toHaveValue(1)
+    expect(screen.getByLabelText('Quantum Multi-threaders number input')).toHaveValue(1)
+    expect(screen.getByLabelText('Quantum Storage blocks number input')).toHaveValue(1)
+    expect(screen.getByLabelText('Quantum Accelerators number input')).toHaveValue(121)
+
+    fireEvent.change(screen.getByLabelText('Width number input'), { target: { value: '4' } })
+    fireEvent.change(screen.getByLabelText('Height number input'), { target: { value: '4' } })
+    fireEvent.change(screen.getByLabelText('Length number input'), { target: { value: '4' } })
+
+    fireEvent.change(screen.getByLabelText('Quantum Data Entanglers number input'), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText('Quantum Multi-threaders number input'), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText('Quantum Accelerators number input'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('Quantum Storage blocks number input'), { target: { value: '1' } })
+
+    const totalStorageRow = screen.getByText('Total crafting storage', { selector: 'dt' }).closest('div')
+    const coProcessorsRow = screen.getByText('Co-Processor count', { selector: 'dt' }).closest('div')
+    const shellGlassRow = screen.getByText('Quantum Computer Structural Glass', { selector: 'dt *' }).closest('div')
+    const storage256Row = screen.getByText('256M Quantum Computer Storage', { selector: 'dt *' }).closest('div')
+    const entanglerRow = screen.getByText('Quantum Data Entangler', { selector: 'dt *' }).closest('div')
+    const threaderRow = screen.getByText('Quantum Multi-threader', { selector: 'dt *' }).closest('div')
+    const acceleratorRow = screen.getByText('Quantum Accelerator', { selector: 'dt *' }).closest('div')
+    const craftingUnitRow = screen.getByText('Quantum Crafting Unit', { selector: 'dt *' }).closest('div')
+
+    expect(totalStorageRow?.querySelector('dd')).toHaveTextContent('2,048 M')
+    expect(coProcessorsRow?.querySelector('dd')).toHaveTextContent('96 threads')
+    expect(shellGlassRow?.querySelector('dd')).toHaveTextContent('56')
+    expect(storage256Row?.querySelector('dd')).toHaveTextContent('1')
+    expect(entanglerRow?.querySelector('dd')).toHaveTextContent('1')
+    expect(threaderRow?.querySelector('dd')).toHaveTextContent('1')
+    expect(acceleratorRow?.querySelector('dd')).toHaveTextContent('2')
+    expect(craftingUnitRow?.querySelector('dd')).toHaveTextContent('2')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quantum storage tier: 256M' }))
+    const totalStorageRow128 = screen.getByText('Total crafting storage', { selector: 'dt' }).closest('div')
+    const storage128Row = screen.getByText('128M Quantum Computer Storage', { selector: 'dt *' }).closest('div')
+    expect(totalStorageRow128?.querySelector('dd')).toHaveTextContent('1,536 M')
+    expect(storage128Row?.querySelector('dd')).toHaveTextContent('1')
+
+    expect(
+      screen.getByText(
+        'Official Quantum Computer validator requires Quantum Computer Structural Glass on all outside faces for multiblock formation.',
+      ),
+    ).toBeInTheDocument()
+    const shellGlassRowAfterToggle = screen.getByText('Quantum Computer Structural Glass', { selector: 'dt *' }).closest('div')
+    expect(shellGlassRowAfterToggle?.querySelector('dd')).toHaveTextContent('56')
   })
 
   it('uses optgroup sections and sets turbine performance controls to max by default', () => {
