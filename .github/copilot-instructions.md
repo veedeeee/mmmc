@@ -73,7 +73,7 @@ In addition, the application will provide the graphical representation of the un
 - Recommended PR body footer line:
   - `:dependabot: This PR was prepared by GitHub Copilot`
 - PR flow policy is automated by `.github/workflows/pr-flow-policy.yml`:
-  - `master -> develop` PRs are auto-approved.
+  - `master -> develop` PRs are auto-approved and auto-merged by policy workflow.
   - `develop -> master` PRs are denied and auto-closed; release must go through `release/* -> master`.
 - Repository setting requirement for auto-approve:
   - In Settings > Actions > General, enable `Allow GitHub Actions to create and approve pull requests`.
